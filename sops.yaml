@@ -1,0 +1,19 @@
+pulumi:
+    passphrase: ENC[AES256_GCM,data:eaeu85GTFTwjPUyA8mZsDLU=,iv:DBMJdD96MYQ2jjWzGDR0WsabxCEDn2w4ToKudidS1kE=,tag:0tAdkPz2kXI45W503nInfA==,type:str]
+hetzner:
+    token: ENC[AES256_GCM,data:e1vD8oWxlwNhpwgE4EjQvPC4cjHyYwywqnUo5/HwrZ7p6xDcy8E/Q3xd2BPpVqx/nEixtbVbpiuPsg7qb+gm9Q==,iv:LOA6BmEHGZtQ1eICrcDLeBdPG2VA1xC/vT1Av/hivjs=,tag:gSmZneemtMpVIMmdm+vO3Q==,type:str]
+sops:
+    age:
+        - recipient: age198yu3najdv79x087fa9qnl9x0pctugcl08ccc3cjpxd6h8ygp57sjglj0k
+          enc: |
+            -----BEGIN AGE ENCRYPTED FILE-----
+            YWdlLWVuY3J5cHRpb24ub3JnL3YxCi0+IFgyNTUxOSB4TW82Znk1c0RGbDJmNVhO
+            a255Ump0b05UTHBEekpzM0F3OVRONFVPbXpJCldJQXVoL1hwaG1lN21McVN1ejFS
+            QUx2dVdpQXZXTE53MEc4RWFJRXR0YkUKLS0tIG54aVk2a242dTI0T0JNMXJxeW5L
+            a1EyNDBUWjc1ckdBWVhLMDkzaXE3Z2sKvAfw5QwyuQB1EvsEil/f6d9ld2XtZuD6
+            zV1pGOA5EInD/BSgn56YrOzJPUE6IOe3vgB64d7z95hBE+cLhUzdJQ==
+            -----END AGE ENCRYPTED FILE-----
+    lastmodified: "2025-06-11T23:02:34Z"
+    mac: ENC[AES256_GCM,data:7LTSRAWNq2Oe21WOuw+cyAL4slMx/r33jJbIrRfLl1l42eij6TUcg+jJTb6wGABAZkbgGiHm5hKUaOw9b5IRfnJnrZ+nU/YLt6iUTQi1+fGu5VtEypwdu5YobekXJq22eb3GDdYn8pXeYA5xXo2ZkohGklbQGmCGwdU+yF2mwSQ=,iv:cOgq/wU4zWHZHdk5LIBdIZ8ZbcvwzUpXr6D8WDIcGYE=,tag:J/c3QM3SdzU3JLSQIGp2qg==,type:str]
+    unencrypted_suffix: _unencrypted
+    version: 3.10.2

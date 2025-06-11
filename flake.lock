@@ -1,0 +1,44 @@
+{
+  "nodes": {
+    "nixpkgs": {
+      "locked": {
+        "lastModified": 1749285348,
+        "narHash": "sha256-frdhQvPbmDYaScPFiCnfdh3B/Vh81Uuoo0w5TkWmmjU=",
+        "owner": "nixos",
+        "repo": "nixpkgs",
+        "rev": "3e3afe5174c561dee0df6f2c2b2236990146329f",
+        "type": "github"
+      },
+      "original": {
+        "owner": "nixos",
+        "ref": "nixos-unstable",
+        "repo": "nixpkgs",
+        "type": "github"
+      }
+    },
+    "opentofu-registry": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1749682874,
+        "narHash": "sha256-n8WCNlAKrbOXCn29xATrji/p9L8FQceAlKBkfw9cdi8=",
+        "owner": "opentofu",
+        "repo": "registry",
+        "rev": "72d3728d62f0254ace065ad792aed35d2e9713a2",
+        "type": "github"
+      },
+      "original": {
+        "owner": "opentofu",
+        "repo": "registry",
+        "type": "github"
+      }
+    },
+    "root": {
+      "inputs": {
+        "nixpkgs": "nixpkgs",
+        "opentofu-registry": "opentofu-registry"
+      }
+    }
+  },
+  "root": "root",
+  "version": 7
+}

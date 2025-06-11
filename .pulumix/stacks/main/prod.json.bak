@@ -1,0 +1,49 @@
+{
+    "version": 3,
+    "checkpoint": {
+        "stack": "organization/main/prod",
+        "latest": {
+            "manifest": {
+                "time": "2025-05-18T20:38:54.366829-07:00",
+                "magic": "6258c8013e4f2e631257f85b5eb8ae2146afce9ee14e8adf88598aaf69092ce2",
+                "version": "v3.162.0"
+            },
+            "secrets_providers": {
+                "type": "passphrase",
+                "state": {
+                    "salt": "v1:rTQOaYppIVU=:v1:MJAb9j/lcvkAq7Ke:NJoWw3OLwRC/q/6eZ46mNKbB453Haw=="
+                }
+            },
+            "resources": [
+                {
+                    "urn": "urn:pulumi:prod::main::pulumi:pulumi:Stack::main-prod",
+                    "custom": false,
+                    "type": "pulumi:pulumi:Stack",
+                    "created": "2025-05-19T03:38:53.694737Z",
+                    "modified": "2025-05-19T03:38:53.694737Z"
+                },
+                {
+                    "urn": "urn:pulumi:prod::main::pulumi:providers:hcloud::default",
+                    "custom": true,
+                    "id": "28023de4-459b-431b-9e8e-1d3db1f61554",
+                    "type": "pulumi:providers:hcloud",
+                    "inputs": {
+                        "token": {
+                            "4dabf18193072939515e22adb298388d": "1b47061264138c4ac30d75fd1eb44270",
+                            "ciphertext": "v1:YCD7nO8AfDV7HISO:MHmL+hSb51lkhgyK3wU5DxECKbz/IEhI8lTm4Uqz4XjsJV8frxStiqa1ZIKKruLvKKxpOtNLjmu0NlogI1g5Jewd18kBjygY/yGt3LDXYWuQOQ=="
+                        }
+                    },
+                    "outputs": {
+                        "token": {
+                            "4dabf18193072939515e22adb298388d": "1b47061264138c4ac30d75fd1eb44270",
+                            "ciphertext": "v1:YCD7nO8AfDV7HISO:MHmL+hSb51lkhgyK3wU5DxECKbz/IEhI8lTm4Uqz4XjsJV8frxStiqa1ZIKKruLvKKxpOtNLjmu0NlogI1g5Jewd18kBjygY/yGt3LDXYWuQOQ=="
+                        }
+                    },
+                    "created": "2025-05-19T03:38:53.77278Z",
+                    "modified": "2025-05-19T03:38:53.77278Z"
+                }
+            ],
+            "metadata": {}
+        }
+    }
+}
