@@ -1,120 +1,141 @@
 {
-  inputs.nixpkgs.url = github:nixos/nixpkgs/nixos-unstable;
-  inputs.opentofu-registry.url = "github:opentofu/registry";
-  inputs.opentofu-registry.flake = false;
-  outputs = {nixpkgs, opentofu-registry, self, ...}: let
-    pkgs = import nixpkgs {
-      system = "aarch64-darwin";
-      overlays = [
-        (final: prev: {
-          pulumiPackages = prev.pulumiPackages.overrideScope (pFinal: pPrev: {
-            pulumi-yaml = final.callPackage ({
-              buildGoModule,
-              fetchFromGitHub, 
-            }: buildGoModule rec {
-              pname = "pulumi-yaml";
-              version = "1.19.0";
-
-              src = fetchFromGitHub {
-                owner = "pulumi";
-                repo = "pulumi-yaml";
-                tag = "v${version}";
-                hash = "sha256-2RRr05yrNWd1zePzgIl2ZS0yZ0t6gRkAM9qh4HlSeVI=";
-              };
-              vendorHash = "sha256-3jj8LQz1pq24YTw5uawWvpDGSkBtGeCqGAS2AvFPTUc=";
-              
-              # TODO don't skip every test
-              doCheck = false;
-            }) {};
-            mkOpenTofuProvider = provider: let
-              inherit (prev.lib) elemAt substring importJSON length head filter splitString;
-              inherit (prev.go) GOARCH GOOS;
-
-              # Parse source (e.g. "owner/repo[/versionTry]")
-              providerParts = splitString "/" provider;
-              owner = elemAt providerParts 0;
-              repo = elemAt providerParts 1;
-              source = "${owner}/${repo}";
-
-              # Target system version (latest by default)
-              version = let
-                upstreamOwner =
-                  if owner == "hashicorp"
-                  then "opentofu"
-                  else owner;
-                file = opentofu-registry + "/providers/${substring 0 1 upstreamOwner}/${upstreamOwner}/${repo}.json";
-                inherit (importJSON file) versions;
-                hasSpecificVersion = (length providerParts) == 3;
-                specificVersion = head (filter (v: v.version == elemAt providerParts 2) versions);
-                latestVersion = head versions;
-              in
-                if hasSpecificVersion then specificVersion else latestVersion;
-              target = head (filter (t: t.arch == GOARCH && t.os == GOOS) version.targets);
-            in pkgs.stdenv.mkDerivation {
-              inherit (version) version;
-              pname = "terraform-provider-${repo}";
-              src = pkgs.fetchurl {
-                url = target.download_url;
-                sha256 = target.shasum;
-              };
-              unpackPhase = "unzip -o $src";
-              nativeBuildInputs = [pkgs.unzip];
-              buildPhase = ":";
-              installPhase = "cp terraform-* $out/";
-              passthru = {inherit repo source;};           
-            };
-          }); 
-        }) 
+  description = "Manage Pulumi stacks with Nix";
+  inputs.flake-parts.url = "github:hercules-ci/flake-parts";
+  inputs.nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
+  outputs = inputs: inputs.flake-parts.lib.mkFlake {inherit inputs;} ({lib, ...}: {
+    
+    systems = ["x86_64-linux" "aarch64-darwin" "aarch64-linux"];
+    flake.overlays = let
+      suboverlay = extensions: lib.flip lib.pipe [
+        builtins.listToAttrs
+        (set: _: _: set)
+        lib.toList
+        (lib.concat extensions)
       ];
+    in {
+      default = final: prev: builtins.foldl' (acc: overlay: acc // (overlay final (prev // acc))) {} (with inputs.self.overlays; [
+        yaml
+        generated
+        native
+      ]);
+      yaml = final: prev: {
+        pulumiPackages = prev.pulumiPackages.overrideScope (_: _: {
+          pulumi-yaml = final.callPackage ./pkgs/pulumi-yaml.nix {};
+        });
+      };
+      generated = final: prev: {
+        pulumiPackages = prev.pulumiPackages.overrideScope (_: _: {
+          pulumi-terraform-provider = final.callPackage ./pkgs/pulumi-terraform-provider.nix {};
+          buildPulumiPythonSDK = final.python3Packages.callPackage ./pkgs/generators/build-pulumi-python-sdk.nix {pulumi-cli = final.pulumi;};
+        });
+        # pythonPackagesExtensions = lib.pipe [
+        #   "googleworkspace"
+        # ] [
+        #   (map final.pulumiPackages.buildPulumiPythonSDK)
+        #   (map (pkg: lib.nameValuePair pkg.pname pkg))
+        #   (suboverlay prev.pythonPackagesExtensions)
+        # ];
+      };
+      native = final: prev: {
+        pulumiPackages = prev.pulumiPackages.overrideScope (pFinal: _: {
+          pulumi-cloudflare = pFinal.callPackage ./pkgs/native/pulumi-cloudflare.nix {};
+          pulumi-github = pFinal.callPackage ./pkgs/native/pulumi-github.nix {};
+          pulumi-googleworkspace = pFinal.callPackage ./pkgs/native/pulumi-googleworkspace.nix {};
+          pulumi-headscale = pFinal.callPackage ./pkgs/native/pulumi-headscale.nix {};
+          pulumi-aws = pFinal.callPackage ./pkgs/native/pulumi-aws.nix {};
+        });
+        # TODO how are the modules upstream in nixpkgs passed automatically?
+        # pythonPackagesExtensions = lib.pipe (with final.pulumiPackages; [
+        #   pulumi-cloudflare
+        #   pulumi-github
+        # ]) [
+        #   (map (pkg: lib.nameValuePair pkg.pname pkg.sdks.python))
+        #   (suboverlay prev.pythonPackagesExtensions)
+        # ];
+      };
     };
-    project = (pkgs.formats.yaml {}).generate "Pulumi.yaml" {
-      name = "main";
-      runtime = "yaml";
-      backend.url = "file://.pulumix";
+    perSystem = {pkgs, system, ...}: {
+      _module.args.pkgs = import inputs.nixpkgs {
+        inherit system;
+        overlays = [inputs.self.overlays.default];
+      };
       packages = {
-        hcloud.source = "${pkgs.pulumiPackages.pulumi-hcloud}/bin";
-        hcloud.version = pkgs.pulumiPackages.pulumi-hcloud.version;
+        inherit (pkgs.pulumiPackages)
+          pulumi-aws
+          pulumi-cloudflare
+          pulumi-github
+          pulumi-googleworkspace
+          pulumi-headscale;
       };
-      plugins.languages = pkgs.lib.toList {
-        name = "yaml";
-        path = "${pkgs.pulumiPackages.pulumi-yaml}/bin";
-        version = pkgs.pulumiPackages.pulumi-yaml.version; 
+      devShells.default = pkgs.mkShell {
+        packages = with pkgs.pulumiPackages; [
+          pulumi-aws
+          # pulumi-cloudflare
+          # pulumi-github
+          # pulumi-googleworkspace
+          # pulumi-headscale
+        ];
       };
-      config."hcloud:token".value = "ref+sops://${./sops.yaml}#/hetzner/token+";
-      variables.ip."fn::invoke" = {
-        function = "hcloud:getPrimaryIp";
-        arguments.name = "root";
-      };
-      resources.key = {
-        type = "hcloud:SshKey";
-        properties.name = "my-ssh-key";
-        properties.publicKey = pkgs.lib.fileContents ./tristan.pub;
-      };
-      outputs.ip = "\${ip.ipAddress}";
-    };
-  in {
-    packages.aarch64-darwin.terraform-provider-headscale = pkgs.pulumiPackages.mkOpenTofuProvider "awlsring/headscale";
-    apps.aarch64-darwin.default = {
-      type = "app";
-      program = pkgs.lib.getExe (pkgs.writeShellApplication {
-        name = "pulumi";
-        runtimeEnv = {
-          PULUMI_DISABLE_AUTOMATIC_PLUGIN_ACQUISITION = true;
-          PULUMI_HOME = ".pulumi";
-          PULUMI_STACK = "prod";
+      legacyPackages.buildPulumiPythonSDK = pkgs.python3Packages.callPackage ./pkgs/generators/build-pulumi-python-sdk.nix {pulumi-cli = pkgs.pulumi;};
+      legacyPackages.pulumiProject = {
+        modules,
+        pkgs ? pkgs,
+      }: let
+        _pkgs = pkgs.extend inputs.self.overlays.default;
+      in _pkgs.lib.evalModules {
+        modules = modules ++ [./pulumi.nix ./pulumix.nix];
+        specialArgs = {
+          pkgs = _pkgs;
+          inherit (_pkgs) lib;
         };
-        runtimeInputs = with pkgs; [pulumi vals];
-        text = ''
-          vals eval -s -f ${project} > Pulumi.yaml
-          trap 'rm -f Pulumi.yaml' EXIT
+      };
+      apps.aarch64-darwin.default = let
+        project = (pkgs.formats.yaml {}).generate "Pulumi.yaml" {
+          name = "main";
+          runtime = "yaml";
+          packages = {
+            hcloud.source = "${pkgs.pulumiPackages.pulumi-hcloud}/bin";
+            hcloud.version = pkgs.pulumiPackages.pulumi-hcloud.version;
+          };
+          plugins.languages = pkgs.lib.toList {
+            name = "yaml";
+            path = "${pkgs.pulumiPackages.pulumi-yaml}/bin";
+            version = pkgs.pulumiPackages.pulumi-yaml.version; 
+          };
+          config."hcloud:token".value = "ref+sops://${./sops.yaml}#/hetzner/token+";
+          variables.ip."fn::invoke" = {
+            function = "hcloud:getPrimaryIp";
+            arguments.name = "root";
+          };
+          resources.key = {
+            type = "hcloud:SshKey";
+            properties.name = "my-ssh-key";
+            properties.publicKey = pkgs.lib.fileContents ./tristan.pub;
+          };
+          outputs.ip = "\${ip.ipAddress}";
+        };
+      in {
+        type = "app";
+        program = pkgs.lib.getExe (pkgs.writeShellApplication {
+          name = "pulumi";
+          runtimeEnv = {
+            PULUMI_DISABLE_AUTOMATIC_PLUGIN_ACQUISITION = true;
+            PULUMI_HOME = ".pulumi";
+            PULUMI_STACK = "prod";
+          };
+          runtimeInputs = with pkgs; [pulumi vals];
+          text = ''
+            vals eval -s -f ${project} > Pulumi.yaml
+            trap 'rm -f Pulumi.yaml' EXIT
 
-          PULUMI_CONFIG_PASSPHRASE="$(vals get 'ref+sops://${./sops.yaml}#/pulumi/passphrase+' 2>/dev/null)"
-          export PULUMI_CONFIG_PASSPHRASE
+            PULUMI_CONFIG_PASSPHRASE="$(vals get 'ref+sops://${./sops.yaml}#/pulumi/passphrase+' 2>/dev/null)"
+            export PULUMI_CONFIG_PASSPHRASE
 
-          pulumi stack select "$PULUMI_STACK" --create
-          pulumi "$@"
-        '';
-      });
+            pulumi stack select "$PULUMI_STACK" --create
+            pulumi "$@"
+          '';
+        });
+      };
     };
-  };
+  });
 }
