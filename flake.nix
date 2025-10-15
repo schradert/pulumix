@@ -3,61 +3,29 @@
   inputs.flake-parts.url = "github:hercules-ci/flake-parts";
   inputs.nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
   outputs = inputs: inputs.flake-parts.lib.mkFlake {inherit inputs;} ({lib, ...}: {
-    
+    imports = [inputs.devenv.flakeModule];
     systems = ["x86_64-linux" "aarch64-darwin" "aarch64-linux"];
-    flake.overlays = let
-      suboverlay = extensions: lib.flip lib.pipe [
-        builtins.listToAttrs
-        (set: _: _: set)
-        lib.toList
-        (lib.concat extensions)
-      ];
-    in {
-      default = final: prev: builtins.foldl' (acc: overlay: acc // (overlay final (prev // acc))) {} (with inputs.self.overlays; [
-        yaml
-        generated
-        native
-      ]);
-      yaml = final: prev: {
-        pulumiPackages = prev.pulumiPackages.overrideScope (_: _: {
-          pulumi-yaml = final.callPackage ./pkgs/pulumi-yaml.nix {};
-        });
-      };
-      generated = final: prev: {
-        pulumiPackages = prev.pulumiPackages.overrideScope (_: _: {
-          pulumi-terraform-provider = final.callPackage ./pkgs/pulumi-terraform-provider.nix {};
-          buildPulumiPythonSDK = final.python3Packages.callPackage ./pkgs/generators/build-pulumi-python-sdk.nix {pulumi-cli = final.pulumi;};
-        });
-        # pythonPackagesExtensions = lib.pipe [
-        #   "googleworkspace"
-        # ] [
-        #   (map final.pulumiPackages.buildPulumiPythonSDK)
-        #   (map (pkg: lib.nameValuePair pkg.pname pkg))
-        #   (suboverlay prev.pythonPackagesExtensions)
-        # ];
-      };
-      native = final: prev: {
-        pulumiPackages = prev.pulumiPackages.overrideScope (pFinal: _: {
-          pulumi-cloudflare = pFinal.callPackage ./pkgs/native/pulumi-cloudflare.nix {};
-          pulumi-github = pFinal.callPackage ./pkgs/native/pulumi-github.nix {};
-          pulumi-googleworkspace = pFinal.callPackage ./pkgs/native/pulumi-googleworkspace.nix {};
-          pulumi-headscale = pFinal.callPackage ./pkgs/native/pulumi-headscale.nix {};
-          pulumi-aws = pFinal.callPackage ./pkgs/native/pulumi-aws.nix {};
-        });
-        # TODO how are the modules upstream in nixpkgs passed automatically?
-        # pythonPackagesExtensions = lib.pipe (with final.pulumiPackages; [
-        #   pulumi-cloudflare
-        #   pulumi-github
-        # ]) [
-        #   (map (pkg: lib.nameValuePair pkg.pname pkg.sdks.python))
-        #   (suboverlay prev.pythonPackagesExtensions)
-        # ];
-      };
-    };
+    flake.overlays.default = ./pkgs;
     perSystem = {pkgs, system, ...}: {
       _module.args.pkgs = import inputs.nixpkgs {
         inherit system;
         overlays = [inputs.self.overlays.default];
+      };
+      packages = legacyPackages.pulumiPackages;
+      legacyPackages = {
+        inherit (pkgs) pulumiPackages;
+        pulumiProject = {
+          modules,
+          pkgs ? pkgs,
+        }: let
+          _pkgs = pkgs.extend inputs.self.overlays.default;
+        in _pkgs.lib.evalModules {
+          modules = modules ++ [./pulumi.nix ./pulumix.nix];
+          specialArgs = {
+            pkgs = _pkgs;
+            inherit (_pkgs) lib;
+          };
+        };
       };
       packages = {
         inherit (pkgs.pulumiPackages)
@@ -66,28 +34,6 @@
           pulumi-github
           pulumi-googleworkspace
           pulumi-headscale;
-      };
-      devShells.default = pkgs.mkShell {
-        packages = with pkgs.pulumiPackages; [
-          pulumi-aws
-          # pulumi-cloudflare
-          # pulumi-github
-          # pulumi-googleworkspace
-          # pulumi-headscale
-        ];
-      };
-      legacyPackages.buildPulumiPythonSDK = pkgs.python3Packages.callPackage ./pkgs/generators/build-pulumi-python-sdk.nix {pulumi-cli = pkgs.pulumi;};
-      legacyPackages.pulumiProject = {
-        modules,
-        pkgs ? pkgs,
-      }: let
-        _pkgs = pkgs.extend inputs.self.overlays.default;
-      in _pkgs.lib.evalModules {
-        modules = modules ++ [./pulumi.nix ./pulumix.nix];
-        specialArgs = {
-          pkgs = _pkgs;
-          inherit (_pkgs) lib;
-        };
       };
       apps.aarch64-darwin.default = let
         project = (pkgs.formats.yaml {}).generate "Pulumi.yaml" {
