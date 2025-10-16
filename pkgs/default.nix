@@ -9,7 +9,7 @@ final: prev: let
 in builtins.foldl' (acc: overlay: acc // (overlay final (prev // acc))) {} [
   (final: prev: {
     pulumiPackages = prev.pulumiPackages.overrideScope (_: _: {
-      pulumi-yaml = final.callPackage ./pkgs/pulumi-yaml.nix {};
+      pulumi-yaml = final.callPackage ./pulumi-yaml.nix {};
     });
   })
   (final: prev: {
