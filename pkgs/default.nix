@@ -10,6 +10,14 @@ in builtins.foldl' (acc: overlay: acc // (overlay final (prev // acc))) {} [
   (final: prev: {
     pulumiPackages = prev.pulumiPackages.overrideScope (_: _: {
       pulumi-yaml = final.callPackage ./pulumi-yaml.nix {};
+      buildPulumiProject = {
+        modules,
+        pkgs ? final,
+        lib ? pkgs.lib,
+      }: pkgs.lib.evalModules {
+        modules = modules ++ [../modules];
+        specialArgs = {inherit pkgs lib;};
+      };
     });
   })
   (final: prev: {

@@ -1,10 +1,8 @@
-{
-  
-}: let
+{lib, ...}: let
   inherit (lib) mkOption types;
   inherit (types) anything attrsOf bool either int nullOr str submodule;
 in {
-  options = {
+  options.pulumi = {
     name = mkOption {
       default = "main";
       type = str;

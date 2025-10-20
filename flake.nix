@@ -6,35 +6,14 @@
     imports = [inputs.devenv.flakeModule];
     systems = ["x86_64-linux" "aarch64-darwin" "aarch64-linux"];
     flake.overlays.default = ./pkgs;
-    perSystem = {pkgs, system, ...}: {
+    perSystem = {lib, pkgs, self', system, ...}: {
       _module.args.pkgs = import inputs.nixpkgs {
         inherit system;
         overlays = [inputs.self.overlays.default];
       };
+      legacyPackages = pkgs.pulumiPackages;
+      packages = lib.filterAttrs (_: lib.isDerivation) self'.legacyPackages; 
       packages = legacyPackages.pulumiPackages;
-      legacyPackages = {
-        inherit (pkgs) pulumiPackages;
-        pulumiProject = {
-          modules,
-          pkgs ? pkgs,
-        }: let
-          _pkgs = pkgs.extend inputs.self.overlays.default;
-        in _pkgs.lib.evalModules {
-          modules = modules ++ [./pulumi.nix ./pulumix.nix];
-          specialArgs = {
-            pkgs = _pkgs;
-            inherit (_pkgs) lib;
-          };
-        };
-      };
-      packages = {
-        inherit (pkgs.pulumiPackages)
-          pulumi-aws
-          pulumi-cloudflare
-          pulumi-github
-          pulumi-googleworkspace
-          pulumi-headscale;
-      };
       apps.aarch64-darwin.default = let
         project = (pkgs.formats.yaml {}).generate "Pulumi.yaml" {
           name = "main";
@@ -46,7 +25,7 @@
           plugins.languages = pkgs.lib.toList {
             name = "yaml";
             path = "${pkgs.pulumiPackages.pulumi-yaml}/bin";
-            version = pkgs.pulumiPackages.pulumi-yaml.version; 
+            version = pkgs.pulumiPackages.pulumi-yaml.version;
           };
           config."hcloud:token".value = "ref+sops://${./sops.yaml}#/hetzner/token+";
           variables.ip."fn::invoke" = {
@@ -61,26 +40,6 @@
           outputs.ip = "\${ip.ipAddress}";
         };
       in {
-        type = "app";
-        program = pkgs.lib.getExe (pkgs.writeShellApplication {
-          name = "pulumi";
-          runtimeEnv = {
-            PULUMI_DISABLE_AUTOMATIC_PLUGIN_ACQUISITION = true;
-            PULUMI_HOME = ".pulumi";
-            PULUMI_STACK = "prod";
-          };
-          runtimeInputs = with pkgs; [pulumi vals];
-          text = ''
-            vals eval -s -f ${project} > Pulumi.yaml
-            trap 'rm -f Pulumi.yaml' EXIT
-
-            PULUMI_CONFIG_PASSPHRASE="$(vals get 'ref+sops://${./sops.yaml}#/pulumi/passphrase+' 2>/dev/null)"
-            export PULUMI_CONFIG_PASSPHRASE
-
-            pulumi stack select "$PULUMI_STACK" --create
-            pulumi "$@"
-          '';
-        });
       };
     };
   });
