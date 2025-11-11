@@ -13,7 +13,6 @@
       };
       legacyPackages = pkgs.pulumiPackages;
       packages = lib.filterAttrs (_: lib.isDerivation) self'.legacyPackages; 
-      packages = legacyPackages.pulumiPackages;
       apps.aarch64-darwin.default = let
         project = (pkgs.formats.yaml {}).generate "Pulumi.yaml" {
           name = "main";
